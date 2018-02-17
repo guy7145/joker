@@ -6,12 +6,12 @@ import cv2
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtWidgets import *
 import joker
-from templates import default_card, EnemyTemplate, SpellTemplate
+from templates import EnemyFactory, SpellFactory, AdventureFactory, ToolFactory, BACK_IMG_NAME, MASK_IMG_NAME
 
 
 def save_card(c, card_path):
     with open(card_path, 'w') as f:
-        json.dump(card, f)
+        json.dump(c, f)
 
 
 def load_card(_path):
@@ -26,10 +26,11 @@ def load_card(_path):
     return c
 
 
-def query_card_info(keys, _card_template, image):
-    img_name = ''
+def query_card_info(keys, _card_template, image, card_info=None):
+    img_name = 'joker'
     offset = 0
-    card_info = default_card.copy()
+    if card_info is None:
+        card_info = dict.fromkeys(['img', 'title', 'text', 'strength', 'skill'], '')
     card_info['img'] = image
     actions = []
     app = QApplication(sys.argv)
@@ -54,6 +55,7 @@ def query_card_info(keys, _card_template, image):
         label = QLabel(k + ":", w)
         label.move(20, 80*offset)
         textbox = QPlainTextEdit(w)
+        textbox.insertPlainText(card_info[k])
         textbox.setLayoutDirection(QtCore.Qt.RightToLeft)
         textbox.resize(280, 40)
         textbox.move(20, 80*offset + 20)
@@ -79,26 +81,3 @@ def query_card_info(keys, _card_template, image):
     app.exec_()
     del card_info['img']
     return card_info, card_img
-
-
-ks = list(default_card.keys())
-ks.remove("img")
-_template = EnemyTemplate()
-path = r'D:\_Guy\PDNs\cards\images\enemies'
-output_dir = r'D:\_Guy\PDNs\cards\final cards'
-for root, _, files in os.walk(path):
-    for f in files:
-        f_full = root + "\\" + f
-        print(f_full)
-        if f[f.rfind("."):] == '.json':
-            # joker.show_img(_template.generate_card(load_card(f_full)))
-            continue
-        # else:
-        #     continue
-        img = cv2.imread(f_full)
-        img = cv2.resize(img, (int(img.shape[1] / 2), int(img.shape[0] / 2)))
-        card, card_img = query_card_info(ks, _template, img)
-        cv2.destroyAllWindows()
-        card["img_path"] = f_full
-        save_card(card, f_full[:f_full.rfind('.')] + '.json')
-        cv2.imwrite('{}\{}.png'.format(output_dir, f[:f.rfind(".")]), card_img)
