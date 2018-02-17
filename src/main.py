@@ -8,15 +8,11 @@ from gui import query_card_info, save_card, load_card
 from templates import ToolFactory, SpellFactory, AdventureFactory, EnemyFactory, BACK_IMG_NAME, MASK_IMG_NAME
 
 
-def main(dir, template_name):
-    root_dir = r'D:\_Guy\PDNs\cards'
-    templates_dir = os.path.join(root_dir, 'templates')
-    out_dir = os.path.join(root_dir, 'output')
-    conf_dir = os.path.join(out_dir, 'conf')
-    gen_dir = os.path.join(out_dir, 'generated')
+def main(root_dir, dir, template_name):
+    templates_dir = os.path.join(root_dir, 'templates_white')
 
-    template_names = ['adventure', 'enemy', 'spell', 'tool']
-    template_constructors = [AdventureFactory, EnemyFactory, SpellFactory, ToolFactory]
+    template_names = ['adventure', 'enemy', 'character', 'spell', 'tool']
+    template_constructors = [AdventureFactory, EnemyFactory, EnemyFactory, SpellFactory, ToolFactory]
     template_images = [
         {
             'template_img': cv2.imread(os.path.join(templates_dir, name, BACK_IMG_NAME)),
@@ -59,4 +55,4 @@ def main(dir, template_name):
 
 
 if __name__ == '__main__':
-    main('characters', 'enemy')
+    main(r'D:\_Guy\PDNs\cards', 'enemies', 'enemy')

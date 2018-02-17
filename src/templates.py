@@ -1,6 +1,4 @@
 import cv2
-import os
-
 import joker
 
 # region card templates
