@@ -1,58 +1,19 @@
 import cv2
-
-# from joker import generate_cards_from_template
 import os
 
 import joker
-from gui import query_card_info, save_card, load_card
-from templates import ToolFactory, SpellFactory, AdventureFactory, EnemyFactory, BACK_IMG_NAME, MASK_IMG_NAME
-
-
-def main(root_dir, dir, template_name):
-    templates_dir = os.path.join(root_dir, 'templates_white')
-
-    template_names = ['adventure', 'enemy', 'character', 'spell', 'tool']
-    template_constructors = [AdventureFactory, EnemyFactory, EnemyFactory, SpellFactory, ToolFactory]
-    template_images = [
-        {
-            'template_img': cv2.imread(os.path.join(templates_dir, name, BACK_IMG_NAME)),
-            'template_mask': cv2.imread(os.path.join(templates_dir, name, MASK_IMG_NAME))
-        }
-        for name in template_names
-    ]
-    templates = { name: constructor(**images) for name, constructor, images in zip(template_names, template_constructors, template_images)}
-
-    ks = list(templates[template_name].get_card_fields())
-    ks.remove("img")
-    _template = templates[template_name]
-    path = r'D:\_Guy\PDNs\cards\images\{}'.format(dir)
-    output_dir = r'D:\_Guy\PDNs\cards\final cards'
-    for root, _, files in os.walk(path):
-        for f in files:
-            f_full = root + "\\" + f
-            print(f_full)
-            if f[f.rfind("."):] == '.json':
-                # joker.show_img(_template.generate_card(load_card(f_full)))
-                continue
-            # else:
-            #     continue
-
-            json_path = f_full[:f_full.rfind(".")] + '.json'
-            print(json_path)
-            if os.path.exists(json_path):
-                card_info = load_card(json_path)
-            else:
-                card_info = None
-            img = cv2.imread(f_full)
-            img = cv2.resize(img, (int(img.shape[1] / 2), int(img.shape[0] / 2)))
-            card, card_img = query_card_info(ks, _template, img, card_info=card_info)
-
-            cv2.destroyAllWindows()
-            card["img_path"] = f_full
-            save_card(card, f_full[:f_full.rfind('.')] + '.json')
-            cv2.imwrite('{}\{}.png'.format(output_dir, f[:f.rfind(".")]), card_img)
-    return
-
 
 if __name__ == '__main__':
-    main(r'D:\_Guy\PDNs\cards', 'enemies', 'enemy')
+    j = joker.JokerToolbox(r'D:\_Guy\PDNs\cards\templates', r'D:\_Guy\PDNs\cards\final cards')
+    # j.edit_dir(r'D:\_Guy\PDNs\cards\images\characters', 'character')
+    for d, t in zip(['characters', 'enemies', 'spells', 'supporters', 'tools'],
+                    ['character', 'enemy', 'spell', 'supporter', 'tool']):
+        j.clear_output_dir()
+        print(d)
+        j.regenerate_dir(r'D:\_Guy\PDNs\cards\images\{}'.format(d), t)
+        print('printable...')
+        ps = j.make_printables(r'D:\_Guy\PDNs\cards\final cards', row_size=3, column_size=3, resize=0.1)
+        for i, printable in enumerate(ps):
+            cv2.imwrite(os.path.join(r'D:\_Guy\PDNs\cards\print', '{}{}.png'.format(d, i + 1)), printable)
+    print('done')
+    # j.make_printable(r'D:\_Guy\PDNs\cards\final cards', row_size=3, column_size=3, resize=0.3)

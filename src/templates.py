@@ -1,7 +1,6 @@
 import cv2
 import joker
 
-# region card templates
 # region configuration
 # FONT_KREDIT = "KREDIT1.TTF"
 FONT_ARIAL = "arial.ttf"
@@ -10,7 +9,7 @@ FONT_MISTRAL = 'MISTRAL.TTF'
 
 STATS_SIZE = 128
 TITLE_SIZE = 96
-TEXT_SIZE = 42
+TEXT_SIZE = 46
 
 ALIGN_CENTER = 'center'
 ALIGN_RIGHT = 'right'
@@ -110,24 +109,3 @@ class EnemyFactory(AdventureFactory):
         keys = list(super().get_card_fields())
         keys.extend(('strength', 'skill'))
         return keys
-
-# endregion
-
-#
-# if __name__ == "__main__":
-#     card_inst = {
-#         'img': cv2.imread(r"D:\_Guy\PDNs\cards\tmp\super saiyan.jpg"),
-#         'title': 'סופר סאייה',
-#         'text': """רשאי להשתמש בתחילת קרב )לפני הטלת הקובייה(.
-# 5+ אוטיזם למשך אותו הקרב.""",
-#         'strength': '12',
-#         'skill': '-4'
-#     }
-#     adventure = AdventureFactory()
-#     spell = SpellFactory()
-#     enemy = EnemyTemplate()
-#     tool = ToolFactory()
-#     joker.show_img(adventure.generate_card(card_inst))
-#     joker.show_img(spell.generate_card(card_inst))
-#     joker.show_img(enemy.generate_card(card_inst))
-#     joker.show_img(tool.generate_card(card_inst))
