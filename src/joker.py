@@ -122,7 +122,7 @@ def get_text_img(shape, text, font_type, font_size, align, rtl=False, fit=True, 
     if rtl:
         text = '\n'.join([''.join(reversed(line)) for line in text.split("\n")])
 
-    draw.text(position, text, font=font, fill=text_color, align=align)
+    draw.text(position, text, font=font, fill=text_color)
     return np.array(img)
 
 

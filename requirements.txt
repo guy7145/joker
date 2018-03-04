@@ -2,3 +2,4 @@ numpy
 PIL
 cv2
 PyQt5
+ipython
