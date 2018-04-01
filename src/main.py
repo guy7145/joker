@@ -15,9 +15,8 @@ def main():
         print(dir_path)
         j.edit_dir(dir_path, template_name)
 
-    j.regenerate_dir(root_dir + r'\images' + '\\' + dir_name, template_name)
-
-    j.make_printouts(j.output_dir, 3, 3, 0.15)
+    # j.regenerate_dir(root_dir + r'\images' + '\\' + dir_name, template_name)
+    # j.make_printouts(j.output_dir, 3, 3, 0.15)
     print('done')
     return
 
