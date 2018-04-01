@@ -22,6 +22,15 @@ MASK_IMG_NAME = 'mask.png'
 # endregion
 
 
+KEY_IMG_PATH = 'img_path'
+KEY_IMG = 'img'
+KEY_TITLE = 'title'
+KEY_TEXT = 'text'
+KEY_NB_INSTANCES_IN_DECK = '#'
+KEY_STRENGTH = 'strength'
+KEY_SKILL = 'skill'
+
+
 class Placeholder:
     def __init__(self, shape, startX, endX, startY, endY):
         self.shape = shape
@@ -63,7 +72,7 @@ class CardFactory:
         return card
 
     def get_card_fields(self):
-        return 'img', 'title', 'text'
+        return KEY_IMG, KEY_TITLE, KEY_TEXT, KEY_NB_INSTANCES_IN_DECK
 
 
 class SpellFactory(CardFactory):
@@ -93,13 +102,20 @@ class EnemyFactory(AdventureFactory):
 
     def generate_card(self, card_instance):
         card = super().generate_card(card_instance)
+        no_text = '-'
+        strength = card_instance.get('strength', no_text)
+        skill = card_instance.get('skill', no_text)
+        strength = strength if strength != '' else '-'
+        skill = skill if skill != '' else '-'
+
         joker.paste(card, joker.get_text_img(self.skill_place.shape,
-                                             card_instance['skill'],
+                                             skill,
                                              FONT_MISTRAL, STATS_SIZE, ALIGN_CENTER,
                                              rtl=False, fit=False, text_color=COLOR_BLUE),
                     *self.skill_place.offsets)
+
         joker.paste(card, joker.get_text_img(self.strength_place.shape,
-                                             card_instance['strength'],
+                                             strength,
                                              FONT_MISTRAL, STATS_SIZE, ALIGN_CENTER,
                                              rtl=False, fit=False, text_color=COLOR_RED),
                     *self.strength_place.offsets)
@@ -107,5 +123,5 @@ class EnemyFactory(AdventureFactory):
 
     def get_card_fields(self):
         keys = list(super().get_card_fields())
-        keys.extend(('strength', 'skill'))
+        keys.extend((KEY_STRENGTH, KEY_SKILL))
         return keys

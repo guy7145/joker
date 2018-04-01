@@ -7,9 +7,11 @@ from PIL import ImageDraw, Image, ImageFont
 import math
 
 from gui import query_card_info
-from templates import BACK_IMG_NAME, MASK_IMG_NAME, AdventureFactory, EnemyFactory, SpellFactory, ToolFactory
+from templates import BACK_IMG_NAME, MASK_IMG_NAME, AdventureFactory, EnemyFactory, SpellFactory, ToolFactory, \
+    KEY_IMG_PATH, KEY_IMG, KEY_NB_INSTANCES_IN_DECK
 
 
+# region utils (saving and loading, etc.)
 def save_card(c, card_path):
     with open(card_path, 'w') as f:
         json.dump(c, f)
@@ -19,11 +21,13 @@ def load_card(_path):
     c = None
     with open(_path, 'r') as file:
         c = json.load(file)
+        if KEY_NB_INSTANCES_IN_DECK not in c.keys():
+            c[KEY_NB_INSTANCES_IN_DECK] = '1'
     if c is None:
         raise Exception()
 
-    c['img'] = cv2.imread(c['img_path'])
-    del c['img_path']
+    c[KEY_IMG] = cv2.imread(c[KEY_IMG_PATH])
+    del c[KEY_IMG_PATH]
     return c
 
 
@@ -36,6 +40,15 @@ def show_img(img, wait=True):
     return
 
 
+def create_white_image(height, width, depth):
+    WHITE = 255
+    img = np.ndarray((height, width, depth), dtype=np.uint8)
+    img.fill(WHITE)
+    return img
+# endregion
+
+
+# region image editing and processing
 def get_template_area(img, area_color):
     mask = cv2.inRange(img, area_color, area_color)
     _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -56,8 +69,10 @@ def get_template_area(img, area_color):
 def paste(dst, src, startX, endX, startY, endY):
     dst[startY:endY, startX:endX] = src
     return
+# endregion
 
 
+# region text-imaging
 def fit_font_by_height(drawer, text, font_size, font_type, max_height):
     while True:
         font = ImageFont.truetype(font_type, font_size)
@@ -93,8 +108,16 @@ def fit_line_by_width(drawer, line, font, max_width, rtl=False):
 
 
 def get_text_img(shape, text, font_type, font_size, align, rtl=False, fit=True, text_color=(0, 0, 0)):
-    # text = text.replace('\n', '. ').replace('\r', '').replace('..', '.')
     img = Image.new('RGB', shape, color=(255, 255, 255))
+
+    # region dealing with crap
+    while '\n\n' in text:
+        text = text.replace('\n\n', '\n')
+    text = text.strip('\n')
+    if text == '':
+        return img
+    # endregion
+
     draw = ImageDraw.Draw(img)
     font = ImageFont.truetype(font_type, font_size)
     w, h = draw.textsize(text, font)
@@ -122,15 +145,10 @@ def get_text_img(shape, text, font_type, font_size, align, rtl=False, fit=True, 
     if rtl:
         text = '\n'.join([''.join(reversed(line)) for line in text.split("\n")])
 
-    draw.text(position, text, font=font, fill=text_color)
+    draw.multiline_text(position, text, font=font, fill=text_color, align=align)
+    # draw.text(position, text, font=font, fill=text_color)
     return np.array(img)
-
-
-def create_white_image(height, width, depth):
-    WHITE = 255
-    img = np.ndarray((height, width, depth), dtype=np.uint8)
-    img.fill(WHITE)
-    return img
+# endregion
 
 
 class JokerToolbox:
@@ -141,7 +159,7 @@ class JokerToolbox:
             return load_card(json_path)
         else:
             keys = list(template.get_card_fields())
-            keys.remove("img")
+            keys.remove(KEY_IMG)
             return dict.fromkeys(keys, '')
 
     @staticmethod
@@ -183,6 +201,11 @@ class JokerToolbox:
                 os.remove(file_path)
         return
 
+    def save_final_card_to_output_dir(self, final_card, card_name, template_name, nb_instances):
+        for i in range(nb_instances):
+            cv2.imwrite('{}\{}_{}_x{}.png'.format(self.output_dir, template_name, card_name, i + 1), final_card)
+        return
+
     def regenerate_dir(self, path, template_name):
         template = self.templates[template_name]
         for root_dir, _, file_names in os.walk(path):
@@ -192,10 +215,12 @@ class JokerToolbox:
 
                 file_path = os.path.join(root_dir, file_name)
                 card_info = JokerToolbox.get_card_json(file_path, template)
-                card_info['img'] = cv2.imread(file_path)
+                card_info[KEY_IMG] = cv2.imread(file_path)
                 card_img = template.generate_card(card_info)
-                cv2.imwrite('{}\{}_{}.png'.format(self.output_dir, template_name, file_name[:file_name.rfind(".")]),
-                            card_img)
+                self.save_final_card_to_output_dir(card_img,
+                                                   file_name[:file_name.rfind(".")],
+                                                   template_name,
+                                                   int(card_info[KEY_NB_INSTANCES_IN_DECK]))
         return
 
     def edit_dir(self, path, template_name):
@@ -217,13 +242,16 @@ class JokerToolbox:
 
         i = max(file_path.rfind('\\'), 0)
         file_name = file_path[i + 1:]
-        card_info["img_path"] = file_name
+        card_info[KEY_IMG_PATH] = file_name
         save_card(card_info, file_path[:file_path.rfind('.')] + '.json')
-        cv2.imwrite('{}\{}_{}.png'.format(self.output_dir, template_name, file_name[:file_name.rfind(".")]), card_img)
+        self.save_final_card_to_output_dir(card_img,
+                                           template_name,
+                                           file_name[:file_name.rfind(".")],
+                                           int(card_info[KEY_NB_INSTANCES_IN_DECK]))
         return
 
     @staticmethod
-    def make_printables(path, row_size, column_size, resize=1):
+    def make_printouts(path, row_size, column_size, resize=1):
         def iter_images():
             for root_dir, _, file_names in os.walk(path):
                 for file_name in file_names:

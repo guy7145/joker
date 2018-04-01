@@ -3,12 +3,13 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtWidgets import *
 import joker
+from templates import KEY_IMG
 
 
 def query_card_info(card_info, template, image):
-    card_info['img'] = image
+    card_info[KEY_IMG] = image
     fields_to_query = list(card_info.keys())
-    fields_to_query.remove('img')
+    fields_to_query.remove(KEY_IMG)
     actions = []
 
     app = QApplication(sys.argv)
@@ -59,5 +60,5 @@ def query_card_info(card_info, template, image):
     joker.show_img(card_img, wait=False)
     w.show()
     app.exec_()
-    del card_info['img']
+    del card_info[KEY_IMG]
     return card_info, card_img
