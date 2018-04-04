@@ -6,49 +6,94 @@ import numpy as np
 from PIL import ImageDraw, Image, ImageFont
 import math
 
+from constants import KEY_IMG, KEY_NB_INSTANCES_IN_DECK, KEY_IMG_PATH, COLOR_WHITE
 from gui import query_card_info
-from templates import BACK_IMG_NAME, MASK_IMG_NAME, AdventureFactory, EnemyFactory, SpellFactory, ToolFactory, \
-    KEY_IMG_PATH, KEY_IMG, KEY_NB_INSTANCES_IN_DECK
+from templates import BACK_IMG_NAME, MASK_IMG_NAME, AdventureFactory, EnemyFactory, SpellFactory, ToolFactory
 
 
 # region utils (saving and loading, etc.)
+def remove_suffix(path):
+    return path[:path.rfind('.')]
+
+
+def get_suffix(path):
+    return path[path.rfind('.'):]
+
+
+def is_image(path):
+    return not is_json(path)
+
+
+def is_json(path):
+    return get_suffix(path) == '.json'
+
+
 def save_card(c, card_path):
+    safe = dict(c)
+
+    if KEY_IMG in safe.keys():
+        del safe[KEY_IMG]
+
     with open(card_path, 'w') as f:
-        json.dump(c, f)
+        json.dump(safe, f)
+
+    return
 
 
-def load_card(_path):
+def load_existing_card(json_path, img_path):
     c = None
-    with open(_path, 'r') as file:
+    with open(json_path, 'r') as file:
         c = json.load(file)
-        if KEY_NB_INSTANCES_IN_DECK not in c.keys():
-            c[KEY_NB_INSTANCES_IN_DECK] = '1'
     if c is None:
         raise Exception()
 
-    c[KEY_IMG] = cv2.imread(c[KEY_IMG_PATH])
-    del c[KEY_IMG_PATH]
+    c[KEY_IMG] = cv2.imread(img_path)
     return c
 
 
-def show_img(img, wait=True):
-    img = cv2.resize(img, (int(img.shape[1]/2), int(img.shape[0]/2)))
+def load_or_create_card(img_path, template):
+    json_path = remove_suffix(img_path) + '.json'
+    if os.path.exists(json_path):
+        return load_existing_card(json_path, img_path)
+    else:
+        keys = list(template.get_fields())
+        keys.remove(KEY_IMG)
+        card_info = dict.fromkeys(keys, '')
+        card_info[KEY_IMG] = cv2.imread(img_path)
+        return card_info
+
+
+def show_img(img, wait=True, resize=0.25):
+    resize = math.sqrt(resize)
+    img = cv2.resize(img, (int(img.shape[1] * resize), int(img.shape[0] * resize)))
     cv2.imshow('hi', img)
     if wait:
         cv2.waitKey(0)
         cv2.destroyAllWindows()
     return
+# endregion
 
 
+# region image editing and processing
 def create_white_image(height, width, depth):
     WHITE = 255
     img = np.ndarray((height, width, depth), dtype=np.uint8)
     img.fill(WHITE)
     return img
-# endregion
 
 
-# region image editing and processing
+def to_rgba(img):
+    channels = cv2.split(img)
+    if len(channels) == 4:
+        pass
+    elif len(channels) == 3:
+        alpha_channel = np.ones(channels[0].shape, dtype=channels[0].dtype)
+        img = cv2.merge((*channels, alpha_channel))
+    else:
+        raise Exception()
+    return img
+
+
 def get_template_area(img, area_color):
     mask = cv2.inRange(img, area_color, area_color)
     _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -69,6 +114,42 @@ def get_template_area(img, area_color):
 def paste(dst, src, startX, endX, startY, endY):
     dst[startY:endY, startX:endX] = src
     return
+
+
+def paste_alpha(dst, src, startX, endX, startY, endY):
+    h_src, w_src, d_src = src.shape
+    h_dst, w_dst, d_dst = dst.shape
+    # endY = min(startY + h_src, h_dst)
+    # endX = min(startX + w_src, w_dst)
+    # print('{}-{}, {}-{}'.format(startX, endX, startY, endY))
+
+    # get alpha channel
+    if d_src < 4:
+        src_alpha = np.full((h_src, w_src), 255.)
+    else:
+        src_alpha = src[:, :, 3]
+
+    alpha_factor = src_alpha[:, :, np.newaxis].astype(np.float32) / 255.0
+    alpha_factor = np.concatenate((alpha_factor, alpha_factor, alpha_factor), axis=2)
+
+    src_rgb = src[:, :, :3].astype(np.float32)
+    dst_rgb = dst[startY:endY, startX:endX, :3].astype(np.float32)
+
+    dst[startY:endY, startX:endX, :3] = dst_rgb * (1 - alpha_factor) + src_rgb * alpha_factor
+    return
+
+
+def fit_image(shape, image_to_fit):
+    img = np.ndarray(shape)
+    h, w, d = shape
+    H, W, D = image_to_fit.shape
+    ratio = min([H/h, W/w])
+
+    print("{},{},{} -{}-> {},{},{}".format(H, W, D, ratio, h, w, d))
+
+    image_to_fit = cv2.resize(image_to_fit, (int(H / ratio), int(W / ratio)))
+    img[:, :, :] = image_to_fit[0:h, 0:w, :d]
+    return img
 # endregion
 
 
@@ -107,15 +188,20 @@ def fit_line_by_width(drawer, line, font, max_width, rtl=False):
     return line
 
 
-def get_text_img(shape, text, font_type, font_size, align, rtl=False, fit=True, text_color=(0, 0, 0)):
-    img = Image.new('RGB', shape, color=(255, 255, 255))
+def get_text_img(shape, text, font_type, font_size, align, rtl=False, fit=True, text_color=(0, 0, 0), format="RGB"):
+    if format == "RGBA":
+        color = 0
+    else:
+        color = COLOR_WHITE
+
+    img = Image.new(format, shape, color=color)
 
     # region dealing with crap
     while '\n\n' in text:
         text = text.replace('\n\n', '\n')
     text = text.strip('\n')
     if text == '':
-        return img
+        return np.array(img)
     # endregion
 
     draw = ImageDraw.Draw(img)
@@ -152,25 +238,9 @@ def get_text_img(shape, text, font_type, font_size, align, rtl=False, fit=True, 
 
 
 class JokerToolbox:
-    @staticmethod
-    def get_card_json(path, template):
-        json_path = path[:path.rfind(".")] + '.json'
-        if os.path.exists(json_path):
-            return load_card(json_path)
-        else:
-            keys = list(template.get_card_fields())
-            keys.remove(KEY_IMG)
-            return dict.fromkeys(keys, '')
-
-    @staticmethod
-    def is_json(path):
-        return path[path.rfind('.'):] == '.json'
-
-    @staticmethod
-    def is_image(path):
-        return not JokerToolbox.is_json(path)
-
     def __init__(self, templates_dir, output_dir):
+        self.output_dir = output_dir
+
         template_names = [d for d in os.listdir(templates_dir) if d.find('.') < 0]
         template_images = [
             {
@@ -180,18 +250,17 @@ class JokerToolbox:
             for name in template_names
         ]
         template_types = []
-        for tn in template_names:
-            with open(os.path.join(templates_dir, tn, 'type.txt'), 'r') as type_file:
+        for name in template_names:
+            with open(os.path.join(templates_dir, name, 'type.txt'), 'r') as type_file:
                 template_types.append(type_file.readlines()[0])
+
         constructor_mapping = {
             'adventure': AdventureFactory,
             'enemy': EnemyFactory,
             'spell': SpellFactory,
             'tool': ToolFactory
         }
-        self.templates = {name: constructor_mapping[type](**images) for name, type, images in
-                     zip(template_names, template_types, template_images)}
-        self.output_dir = output_dir
+        self.templates = {name: constructor_mapping[type](**images) for name, type, images in zip(template_names, template_types, template_images)}
         return
 
     def clear_output_dir(self):
@@ -210,13 +279,13 @@ class JokerToolbox:
         template = self.templates[template_name]
         for root_dir, _, file_names in os.walk(path):
             for file_name in file_names:
-                if not JokerToolbox.is_image(file_name):
+                if not is_image(file_name):
                         continue
 
                 file_path = os.path.join(root_dir, file_name)
-                card_info = JokerToolbox.get_card_json(file_path, template)
-                card_info[KEY_IMG] = cv2.imread(file_path)
-                card_img = template.generate_card(card_info)
+                card_info = load_or_create_card(file_path, template)
+                # card_info[KEY_IMG] = cv2.imread(file_path)
+                card_img = template.generate_image(card_info)
                 self.save_final_card_to_output_dir(card_img,
                                                    file_name[:file_name.rfind(".")],
                                                    template_name,
@@ -226,7 +295,7 @@ class JokerToolbox:
     def edit_dir(self, path, template_name):
         for root_dir, _, file_names in os.walk(path):
             for file_name in file_names:
-                if not JokerToolbox.is_image(file_name):
+                if not is_image(file_name):
                     continue
 
                 file_path = os.path.join(root_dir, file_name)
@@ -235,15 +304,14 @@ class JokerToolbox:
 
     def edit(self, file_path, template_name):
         template = self.templates[template_name]
-        card_info = JokerToolbox.get_card_json(file_path, template)
-        card_img = cv2.imread(file_path)
-        card_info, card_img = query_card_info(card_info, template, card_img)
+        card_info = load_or_create_card(file_path, template)
+        card_info, card_img = query_card_info(card_info, template)
         cv2.destroyAllWindows()
 
         i = max(file_path.rfind('\\'), 0)
         file_name = file_path[i + 1:]
         card_info[KEY_IMG_PATH] = file_name
-        save_card(card_info, file_path[:file_path.rfind('.')] + '.json')
+        save_card(card_info, remove_suffix(file_path) + '.json')
         self.save_final_card_to_output_dir(card_img,
                                            template_name,
                                            file_name[:file_name.rfind(".")],

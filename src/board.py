@@ -1,90 +1,105 @@
+import json
+
+import cv2
 import numpy as np
 from itertools import product, chain, repeat
+
+from PIL import Image
+
 import joker
-from templates import FONT_ARIAL
+from constants import KEY_TEXT, KEY_TITLE, KEY_IMG, KEY_RING_NUMBER, AREA_COLOR_IMG, AREA_COLOR_TITLE, AREA_COLOR_TEXT, \
+    board_root_dir, board_tiles_input_dir, KEY_IMG_PATH
+from gui import query_card_info
+from templates import FONT_ARIAL, Template, Placeholder, FONT_STAM, TITLE_SIZE, ALIGN_CENTER, ALIGN_RIGHT, TEXT_SIZE
+import itertools
+import os
 
-
-class Tile:
-    def __init__(self, title, text):
-        self.title, self.text = title, text
-        return
-
-    def __repr__(self):
-        return self.title
-
-    def generate(self, h, w):
-        return joker.get_text_img((h, w), 'tile', FONT_ARIAL, 96, 'center')
 
 # region tiles
-house_guy_nurit = Tile('tile', '...')
-house_guy_bh = Tile('tile', '...')
-house_ido = Tile('tile', '...')
-house_gal = Tile('tile', '...')
-house_ron = Tile('tile', '...')
-house_omer = Tile('tile', '...')
-house_nitzan = Tile('tile', '...')
-nasa = Tile('tile', '...')
-recruit = Tile('tile', '...')
-beit_shean = Tile('tile', '...')
-afula = Tile('tile', '...')
-gilboa = Tile('tile', '...')
-menta_gas_station = Tile('tile', '...')
-pita_druzit = Tile('tile', '...')
-school = Tile('tile', '...')
-coca = Tile('tile', '...')
-university = Tile('tile', '...')
-black_hole = Tile('tile', '...')
-heaven = Tile('tile', '...')
-sun = Tile('tile', '...')
-milky_way = Tile('tile', '...')
-moon = Tile('tile', '...')
-meteor_shower = Tile('tile', '...')
-olympus = Tile('tile', '...')
-space_station = Tile('tile', '...')
-sahne = Tile('tile', '...')
-asi_nir_david = Tile('tile', '...')
-revaya_b = Tile('tile', '...')
-trablinka = Tile('tile', '...')
-pool_ram_on = Tile('tile', '...')
-geva = Tile('tile', '...')
-kibutzim_river = Tile('tile', '...')
-sea_of_galilea = Tile('tile', '...')
-tiberias = Tile('tile', '...')
-hospital = Tile('tile', '...')
-pedagogue = Tile('tile', '...')
-bakum = Tile('tile', '...')
-kaban = Tile('tile', '...')
-bottom_city_haifa = Tile('tile', '...')
-air_force = Tile('tile', '...')
-bahadim = Tile('tile', '...')
-hell = Tile('tile', '...')
-dorms = Tile('tile', '...')
-katef_shaol = Tile('tile', '...')
-bus = Tile('tile', '...')
-konetiket = Tile('tile', '...')
+# region outer ring
+tiberias_recruitment_office="tiberias_recruitment_office"
+beit_shean="beit_shean"
+katef_shaol="katef_shaol"
+gilboa="gilboa"
+house_guy_nurit="house_guy_nurit"
+menta_gas_station="menta_gas_station"
+pita_druzit="pita_druzit"
+house_gal="house_gal"
+school="school"
+konetiket="konetiket"
+kadima="kadima"
+beit_noam="beit_noam"
+afula="afula"
+afula_beer_fair="afula_beer_fair"
+house_omer="house_omer"
+house_ron="house_ron"
+court_ram_on="court_ram_on"
+house_nitzan="house_nitzan"
+pool_ram_on="pool_ram_on"
+house_ido="house_ido"
+synagogue="synagogue"
+hospital="hospital"
+house_guy_bh="house_guy_bh"
+sahne="sahne"
+kibutzim_river="kibutzim_river"
+sea_of_galilea="sea_of_galilea"
+# endregion
+# region middle ring
+bakum="bakum"
+bahadim="bahadim"
+bgu="bgu"
+dorms="dorms"
+coca="coca"
+bus870="bus870"
+nasa="nasa"
+eilat="eilat"
+sdei_avraham="sdei_avraham"
+valley_bar="valley_bar"
+geva="geva"
+ramat_yishai="ramat_yishai"
+trablinka="trablinka"
+revaya_b="revaya_b"
+air_force="air_force"
+lower_city_haifa="lower_city_haifa"
+asi_nir_david="asi_nir_david"
+kaban="kaban"
+# endregion
+# region inner ring
+black_hole="black_hole"
+heaven="heaven"
+sun="sun"
+milky_way="milky_way"
+moon="moon"
+meteor_shower="meteor_shower"
+olympus="olympus"
+space_station="space_station"
+hell="hell"
+cassiopeia="cassiopeia"
+# endregion
 # endregion
 
-# region iterate_ring test
-# t0, t1, t2, t3 = Tile('0', '...'), Tile('1', '...'), Tile('2', '...'), Tile('3', '...')
-# tiles = np.array([[t0, t0, t0, t0, t0, t0, t0],
-#                   [t0, t1, t1, t1, t1, t1, t0],
-#                   [t0, t1, t2, t2, t2, t1, t0],
-#                   [t0, t1, t2, t3, t2, t1, t0],
-#                   [t0, t1, t2, t2, t2, t1, t0],
-#                   [t0, t1, t1, t1, t1, t1, t0],
-#                   [t0, t0, t0, t0, t0, t0, t0]])
-# endregion
+board_tiles_strings = np.array([[tiberias_recruitment_office, beit_shean, katef_shaol, gilboa, house_guy_nurit, menta_gas_station, pita_druzit, house_gal, school],
+                                [sea_of_galilea, bakum, bahadim, bgu, dorms, coca, bus870, nasa, konetiket],
+                                [kibutzim_river, kaban, hell, black_hole, cassiopeia, moon, space_station, eilat, kadima],
+                                [sahne, asi_nir_david, olympus, heaven, meteor_shower, milky_way, sun, sdei_avraham, beit_noam],
+                                [house_guy_bh, lower_city_haifa, air_force, revaya_b, trablinka, ramat_yishai, geva, valley_bar, afula],
+                                [hospital, synagogue, house_ido, pool_ram_on, house_nitzan, court_ram_on, house_ron, house_omer, afula_beer_fair]])
 
-tiles = np.array([[tiberias, beit_shean, katef_shaol, gilboa, house_guy_nurit, menta_gas_station, pita_druzit, house_gal, school],
-                  [sea_of_galilea, bakum, bahadim, university, dorms, coca, bus, nasa, konetiket],
-                  [coca, coca, coca, coca, coca, coca, coca, coca, coca],
-                  [coca, coca, coca, coca, coca, coca, coca, coca, coca],
-                  [coca, coca, coca, coca, coca, coca, coca, coca, coca],
-                  [coca, coca, coca, coca, coca, coca, coca, coca, coca]])
+TAG_WATER = 'water'
+TAG_BEER = 'pub'
+TAG_SIMPLE_DRAW = 'draw'
+KEY_TAGS = "tags"
+
+VALUE_MIDDLE_RING_NUMBER = '1'
+VALUE_OUTER_RING_NUMBER = '0'
+
+NORMAL_BOARD_TILE_SHAPE = (1000, 1000)
 
 
-def iterate_ring(rectangle, ring_num):
+def iterate_ring_indexes(rectangle, ring_num):
     y_max, x_max = rectangle.shape
+
+    #
     if x_max == y_max and x_max - 2*ring_num == 1:
         yield rectangle[ring_num, ring_num]
         return
@@ -106,29 +121,130 @@ def iterate_ring(rectangle, ring_num):
                     zip(repeat(y_max), range(x_max, start, -1)),
                     zip(range(y_max, start, -1), repeat(start)))
 
-    for y, x in indexes:
-        yield rectangle[y, x]
-    return
+    yield from indexes
 
 
-class Board:
-    def __init__(self, tile_width=500, tile_height=500):
-        self.tile_width = tile_width
-        self.tile_height = tile_height
+class TileFactory(Template):
+    def get_template_name(self):
+        return "Tile"
+
+    def get_fields(self):
+        return KEY_IMG, KEY_TITLE, KEY_TEXT, KEY_RING_NUMBER, KEY_TAGS
+
+    def __init__(self, foreground_image, template_mask, tile_shape=(500, 500),
+                 title_area_color=AREA_COLOR_TITLE,
+                 text_area_color=AREA_COLOR_TEXT):
+        super().__init__()
+        self.tile_shape = tile_shape
+        self.template_img = np.ndarray((*NORMAL_BOARD_TILE_SHAPE, 3), dtype=np.uint8)
+        self.template_img.fill(0)
+
+        self.foreground_image = cv2.resize(foreground_image, NORMAL_BOARD_TILE_SHAPE)
+        self.template_mask = cv2.resize(template_mask, NORMAL_BOARD_TILE_SHAPE)
+
+        self.ttl_place = Placeholder(*joker.get_template_area(self.template_mask, title_area_color))
+        self.txt_place = Placeholder(*joker.get_template_area(self.template_mask, text_area_color))
         return
 
-    def generate_board(self):
-        tiles_y, tiles_x = tiles.shape
-        board = np.ndarray((tiles_y * self.tile_height, tiles_x * self.tile_width, 3))
-        WHITE = 255
-        board.fill(255)
-        for y, x in product(range(tiles_y), range(tiles_x)):
-            joker.show_img(tiles[y, x].generate(self.tile_height, self.tile_width))
-        return
+    def generate_image(self, instance):
+        card = self.template_img.copy()
+        h, w, _ = card.shape
+        tile_image = instance[KEY_IMG]
+        if instance[KEY_RING_NUMBER] == VALUE_OUTER_RING_NUMBER:
+            tile_image = tint_color(tile_image, 1)
+        elif instance[KEY_RING_NUMBER] == VALUE_MIDDLE_RING_NUMBER:
+            tile_image = tint_color(tile_image, 0)
+
+        joker.paste(card, cv2.resize(tile_image, (h, w)), 0, h, 0, w)
+
+        joker.paste_alpha(card, self.foreground_image, 0, h, 0, w)
+
+        joker.paste_alpha(card, joker.get_text_img(self.ttl_place.shape,
+                                             instance.get(KEY_TITLE, ''),
+                                             FONT_STAM, TITLE_SIZE, ALIGN_CENTER, rtl=True, fit=False, format="RGBA"),
+                          *self.ttl_place.offsets)
+
+        joker.paste_alpha(card, joker.get_text_img(self.txt_place.shape,
+                                             instance.get(KEY_TEXT, ''),
+                                             FONT_ARIAL, TEXT_SIZE, ALIGN_RIGHT, rtl=True, fit=True, format="RGBA"),
+                          *self.txt_place.offsets)
+        return cv2.resize(card, self.tile_shape)
 
 
-for k in range(4):
-    for i, tile in enumerate(iterate_ring(tiles, k)):
-        print((i, tile))
+def tint_color(img, color):
+    colorized = np.ndarray(img.shape, dtype=np.float64)
 
-# Board().generate_board()
+    black_and_white = np.average(img, 2)
+    for i in range(3):
+        colorized[:, :, i] = black_and_white
+        if i != color:
+            colorized[:, :, i] *= 0.9
+
+        colorized[:, :, color] *= 1.1
+
+    colorized[colorized < 0] = 0
+    colorized[colorized > 255] = 255
+    return colorized.astype(np.uint8)
+
+
+def generate_board(tiles_template):
+    tiles_y, tiles_x = board_tiles.shape
+    h, w = tiles_template.tile_shape
+    board_image = joker.create_white_image(tiles_y * h, tiles_x * w, 3)
+
+    for ring in range(3):
+        for y, x in iterate_ring_indexes(board_tiles, ring):
+            tile_image = tiles_template.generate_image(board_tiles[y, x])
+            k = 0
+            if y == ring:
+                k = 2
+            elif y == (tiles_y - 1) - ring:
+                k = 0
+            elif x == ring:
+                k = 3
+            elif x == (tiles_x - 1) - ring:
+                k = 1
+            tile_image = np.rot90(tile_image, k)
+            joker.paste(board_image, tile_image, x * w, (x + 1) * w, y * h, (y + 1) * h)
+
+    return board_image
+
+
+def get_path(f):
+    return os.path.join(board_tiles_input_dir, f)
+
+
+tile_template = TileFactory(cv2.imread(os.path.join(board_root_dir, 'board_tile_template', 'foreground.png'), cv2.IMREAD_UNCHANGED),
+                            cv2.imread(os.path.join(board_root_dir, 'board_tile_template', 'mask.png')))
+images = {joker.remove_suffix(f): f for f in os.listdir(board_tiles_input_dir) if joker.is_image(f)}
+
+
+# def make_or_load_tile(name):
+#     path = joker.remove_suffix(get_path(images[name])) + '.json'
+#     if os.path.exists(path):
+#         tile = json.loads(path[:path.rfind('.')] + '.json')
+#         for k in tile_template.get_fields():
+#             if k not in tile.keys():
+#                 tile[k] = ''
+#         return tile
+#     else:
+#         return dict.fromkeys(tile_template.get_fields(), '')
+#
+#
+# def save_tile(name, tile):
+#     path = get_path(images[name])
+#     path = path[:path.rfind('.')] + '.json'
+#     with open(path, 'w') as file:
+#         file.write(json.dumps(tile))
+#     return
+
+
+board_tiles = np.ndarray(board_tiles_strings.shape, dtype=object)
+for i, j in itertools.product(*[range(l) for l in board_tiles.shape]):
+    tile_name = board_tiles_strings[i, j]
+    print(get_path(images[tile_name]))
+    tile_info = joker.load_or_create_card(get_path(images[tile_name]), tile_template)
+    tile_info, _ = query_card_info(tile_info, tile_template)
+    joker.save_card(tile_info, os.path.join(board_tiles_input_dir, tile_name + '.json'))
+    board_tiles[i, j] = tile_info
+joker.show_img(generate_board(tile_template), resize=0.1)

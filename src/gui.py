@@ -6,10 +6,10 @@ import joker
 from templates import KEY_IMG
 
 
-def query_card_info(card_info, template, image):
-    card_info[KEY_IMG] = image
+def query_card_info(card_info, template):
     fields_to_query = list(card_info.keys())
-    fields_to_query.remove(KEY_IMG)
+    if KEY_IMG in fields_to_query:
+        fields_to_query.remove(KEY_IMG)
     actions = []
 
     app = QApplication(sys.argv)
@@ -26,7 +26,7 @@ def query_card_info(card_info, template, image):
     def create_text_changed_event_handler(_k, _box, _w):
         def update_design():
             card_info[_k] = _box.toPlainText()
-            joker.show_img(template.generate_card(card_info), wait=False)
+            joker.show_img(template.generate_image(card_info), wait=False)
 
         return update_design
 
@@ -56,7 +56,7 @@ def query_card_info(card_info, template, image):
     button = QPushButton('OK', w)
     button.clicked.connect(create_onclick(w))
     button.move(20, 80*offset)
-    card_img = template.generate_card(card_info)
+    card_img = template.generate_image(card_info)
     joker.show_img(card_img, wait=False)
     w.show()
     app.exec_()

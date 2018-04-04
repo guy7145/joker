@@ -3,6 +3,9 @@ import joker
 
 # region configuration
 # FONT_KREDIT = "KREDIT1.TTF"
+from constants import KEY_IMG, KEY_TITLE, KEY_TEXT, KEY_NB_INSTANCES_IN_DECK, KEY_STRENGTH, KEY_SKILL, AREA_COLOR_TEXT, \
+    AREA_COLOR_TITLE, AREA_COLOR_IMG, AREA_COLOR_STRENGTH, AREA_COLOR_SKILL
+
 FONT_ARIAL = "arial.ttf"
 FONT_STAM = 'STAM.TTF'
 FONT_MISTRAL = 'MISTRAL.TTF'
@@ -22,15 +25,6 @@ MASK_IMG_NAME = 'mask.png'
 # endregion
 
 
-KEY_IMG_PATH = 'img_path'
-KEY_IMG = 'img'
-KEY_TITLE = 'title'
-KEY_TEXT = 'text'
-KEY_NB_INSTANCES_IN_DECK = '#'
-KEY_STRENGTH = 'strength'
-KEY_SKILL = 'skill'
-
-
 class Placeholder:
     def __init__(self, shape, startX, endX, startY, endY):
         self.shape = shape
@@ -38,14 +32,26 @@ class Placeholder:
         return
 
 
-class CardFactory:
-    def __init__(self, template_img, template_mask,
-                 img_area_color=(210, 206, 255),
-                 title_area_color=(231, 181, 255),
-                 text_area_color=(153, 127, 255)):
+class Template:
+    def __init__(self):
+        return
 
-        # joker.show_img(template_img)
-        # joker.show_img(template_mask)
+    def get_template_name(self):
+        raise NotImplementedError()
+
+    def generate_image(self, instance):
+        raise NotImplementedError()
+
+    def get_fields(self):
+        raise NotImplementedError()
+
+
+class CardTemplate(Template):
+    def __init__(self, template_img, template_mask,
+                 img_area_color=AREA_COLOR_IMG,
+                 title_area_color=AREA_COLOR_TITLE,
+                 text_area_color=AREA_COLOR_TEXT):
+        super().__init__()
         self.template_img = template_img
         self.template_mask = template_mask
         self.img_place = Placeholder(*joker.get_template_area(template_mask, img_area_color))
@@ -53,58 +59,58 @@ class CardFactory:
         self.txt_place = Placeholder(*joker.get_template_area(template_mask, text_area_color))
         return
 
-    def get_name(self):
+    def get_template_name(self):
         raise NotImplementedError()
 
-    def generate_card(self, card_instance):
+    def generate_image(self, instance):
         card = self.template_img.copy()
-        joker.paste(card, cv2.resize(card_instance['img'], self.img_place.shape), *self.img_place.offsets)
+        joker.paste(card, cv2.resize(instance[KEY_IMG], self.img_place.shape), *self.img_place.offsets)
 
         joker.paste(card, joker.get_text_img(self.ttl_place.shape,
-                                             card_instance['title'],
+                                             instance[KEY_TITLE],
                                              FONT_STAM, TITLE_SIZE, ALIGN_CENTER, rtl=True, fit=False),
                     *self.ttl_place.offsets)
 
         joker.paste(card, joker.get_text_img(self.txt_place.shape,
-                                             card_instance['text'],
+                                             instance[KEY_TEXT],
                                              FONT_ARIAL, TEXT_SIZE, ALIGN_RIGHT, rtl=True, fit=True),
                     *self.txt_place.offsets)
         return card
 
-    def get_card_fields(self):
+    def get_fields(self):
         return KEY_IMG, KEY_TITLE, KEY_TEXT, KEY_NB_INSTANCES_IN_DECK
 
 
-class SpellFactory(CardFactory):
-    def get_name(self):
+class SpellFactory(CardTemplate):
+    def get_template_name(self):
         return "Spell"
 
 
-class ToolFactory(CardFactory):
-    def get_name(self):
+class ToolFactory(CardTemplate):
+    def get_template_name(self):
         return "Tool"
 
 
-class AdventureFactory(CardFactory):
-    def get_name(self):
+class AdventureFactory(CardTemplate):
+    def get_template_name(self):
         return "Adventure"
 
 
 class EnemyFactory(AdventureFactory):
-    def __init__(self, strength_area_color=(142, 142, 255), skill_area_color=(255, 145, 209), *args, **kwargs):
+    def __init__(self, strength_area_color=AREA_COLOR_STRENGTH, skill_area_color=AREA_COLOR_SKILL, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.strength_place = Placeholder(*joker.get_template_area(self.template_mask, strength_area_color))
         self.skill_place = Placeholder(*joker.get_template_area(self.template_mask, skill_area_color))
         return
 
-    def get_name(self):
+    def get_template_name(self):
         return "Enemy"
 
-    def generate_card(self, card_instance):
-        card = super().generate_card(card_instance)
+    def generate_image(self, instance):
+        card = super().generate_image(instance)
         no_text = '-'
-        strength = card_instance.get('strength', no_text)
-        skill = card_instance.get('skill', no_text)
+        strength = instance.get(KEY_STRENGTH, no_text)
+        skill = instance.get(KEY_SKILL, no_text)
         strength = strength if strength != '' else '-'
         skill = skill if skill != '' else '-'
 
@@ -121,7 +127,7 @@ class EnemyFactory(AdventureFactory):
                     *self.strength_place.offsets)
         return card
 
-    def get_card_fields(self):
-        keys = list(super().get_card_fields())
+    def get_fields(self):
+        keys = list(super().get_fields())
         keys.extend((KEY_STRENGTH, KEY_SKILL))
         return keys
