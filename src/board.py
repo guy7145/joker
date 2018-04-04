@@ -10,7 +10,8 @@ import joker
 from constants import KEY_TEXT, KEY_TITLE, KEY_IMG, KEY_RING_NUMBER, AREA_COLOR_IMG, AREA_COLOR_TITLE, AREA_COLOR_TEXT, \
     board_root_dir, board_tiles_input_dir, KEY_IMG_PATH
 from gui import query_card_info
-from templates import FONT_ARIAL, Template, Placeholder, FONT_STAM, TITLE_SIZE, ALIGN_CENTER, ALIGN_RIGHT, TEXT_SIZE
+from templates import FONT_ARIAL, Template, Placeholder, FONT_STAM, TITLE_SIZE, ALIGN_CENTER, ALIGN_RIGHT, TEXT_SIZE, \
+    BOARD_TILE_TEXT_SIZE
 import itertools
 import os
 
@@ -80,8 +81,8 @@ cassiopeia="cassiopeia"
 
 board_tiles_strings = np.array([[tiberias_recruitment_office, beit_shean, katef_shaol, gilboa, house_guy_nurit, menta_gas_station, pita_druzit, house_gal, school],
                                 [sea_of_galilea, bakum, bahadim, bgu, dorms, coca, bus870, nasa, konetiket],
-                                [kibutzim_river, kaban, hell, black_hole, cassiopeia, moon, space_station, eilat, kadima],
-                                [sahne, asi_nir_david, olympus, heaven, meteor_shower, milky_way, sun, sdei_avraham, beit_noam],
+                                [sahne, kaban, hell, black_hole, cassiopeia, moon, space_station, eilat, kadima],
+                                [kibutzim_river, asi_nir_david, olympus, heaven, meteor_shower, milky_way, sun, sdei_avraham, beit_noam],
                                 [house_guy_bh, lower_city_haifa, air_force, revaya_b, trablinka, ramat_yishai, geva, valley_bar, afula],
                                 [hospital, synagogue, house_ido, pool_ram_on, house_nitzan, court_ram_on, house_ron, house_omer, afula_beer_fair]])
 
@@ -150,10 +151,10 @@ class TileFactory(Template):
         card = self.template_img.copy()
         h, w, _ = card.shape
         tile_image = instance[KEY_IMG]
-        if instance[KEY_RING_NUMBER] == VALUE_OUTER_RING_NUMBER:
-            tile_image = tint_color(tile_image, 1)
-        elif instance[KEY_RING_NUMBER] == VALUE_MIDDLE_RING_NUMBER:
-            tile_image = tint_color(tile_image, 0)
+        # if instance[KEY_RING_NUMBER] == VALUE_OUTER_RING_NUMBER:
+        #     tile_image = tint_color(tile_image, 1)
+        # elif instance[KEY_RING_NUMBER] == VALUE_MIDDLE_RING_NUMBER:
+        #     tile_image = tint_color(tile_image, 0)
 
         joker.paste(card, cv2.resize(tile_image, (h, w)), 0, h, 0, w)
 
@@ -166,7 +167,7 @@ class TileFactory(Template):
 
         joker.paste_alpha(card, joker.get_text_img(self.txt_place.shape,
                                              instance.get(KEY_TEXT, ''),
-                                             FONT_ARIAL, TEXT_SIZE, ALIGN_RIGHT, rtl=True, fit=True, format="RGBA"),
+                                             FONT_ARIAL, BOARD_TILE_TEXT_SIZE, ALIGN_RIGHT, rtl=True, fit=True, format="RGBA", text_color=(255, 255, 255)),
                           *self.txt_place.offsets)
         return cv2.resize(card, self.tile_shape)
 
@@ -175,6 +176,7 @@ def tint_color(img, color):
     colorized = np.ndarray(img.shape, dtype=np.float64)
 
     black_and_white = np.average(img, 2)
+    black_and_white *= 0.3
     for i in range(3):
         colorized[:, :, i] = black_and_white
         if i != color:
@@ -244,7 +246,15 @@ for i, j in itertools.product(*[range(l) for l in board_tiles.shape]):
     tile_name = board_tiles_strings[i, j]
     print(get_path(images[tile_name]))
     tile_info = joker.load_or_create_card(get_path(images[tile_name]), tile_template)
+
+    tile_image = tile_info[KEY_IMG]
+    if tile_info[KEY_RING_NUMBER] == VALUE_OUTER_RING_NUMBER:
+        tile_image = tint_color(tile_image, 1)
+    elif tile_info[KEY_RING_NUMBER] == VALUE_MIDDLE_RING_NUMBER:
+        tile_image = tint_color(tile_image, 0)
+    tile_info[KEY_IMG] = tile_image
+
     tile_info, _ = query_card_info(tile_info, tile_template)
-    joker.save_card(tile_info, os.path.join(board_tiles_input_dir, tile_name + '.json'))
+    # joker.save_card(tile_info, os.path.join(board_tiles_input_dir, tile_name + '.json'))
     board_tiles[i, j] = tile_info
 joker.show_img(generate_board(tile_template), resize=0.1)
