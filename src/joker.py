@@ -21,7 +21,7 @@ def get_suffix(path):
 
 
 def is_image(path):
-    return not is_json(path)
+    return not is_json(path) and get_suffix(path) != '.ini'
 
 
 def is_json(path):
@@ -30,7 +30,7 @@ def is_json(path):
 
 def save_card(c, card_path):
     safe = dict(c)
-
+    print(card_path)
     if KEY_IMG in safe.keys():
         del safe[KEY_IMG]
 
@@ -54,13 +54,13 @@ def load_existing_card(json_path, img_path):
 def load_or_create_card(img_path, template):
     json_path = remove_suffix(img_path) + '.json'
     if os.path.exists(json_path):
-        return load_existing_card(json_path, img_path)
+        card_info = load_existing_card(json_path, img_path)
     else:
         keys = list(template.get_fields())
         keys.remove(KEY_IMG)
         card_info = dict.fromkeys(keys, '')
         card_info[KEY_IMG] = cv2.imread(img_path)
-        return card_info
+    return card_info
 
 
 def show_img(img, wait=True, resize=0.25):
@@ -281,10 +281,8 @@ class JokerToolbox:
             for file_name in file_names:
                 if not is_image(file_name):
                         continue
-
                 file_path = os.path.join(root_dir, file_name)
                 card_info = load_or_create_card(file_path, template)
-                # card_info[KEY_IMG] = cv2.imread(file_path)
                 card_img = template.generate_image(card_info)
                 self.save_final_card_to_output_dir(card_img,
                                                    file_name[:file_name.rfind(".")],
@@ -310,7 +308,6 @@ class JokerToolbox:
 
         i = max(file_path.rfind('\\'), 0)
         file_name = file_path[i + 1:]
-        card_info[KEY_IMG_PATH] = file_name
         save_card(card_info, remove_suffix(file_path) + '.json')
         self.save_final_card_to_output_dir(card_img,
                                            template_name,

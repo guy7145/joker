@@ -255,6 +255,6 @@ for i, j in itertools.product(*[range(l) for l in board_tiles.shape]):
     tile_info[KEY_IMG] = tile_image
 
     tile_info, _ = query_card_info(tile_info, tile_template)
-    # joker.save_card(tile_info, os.path.join(board_tiles_input_dir, tile_name + '.json'))
+    joker.save_card(tile_info, os.path.join(board_tiles_input_dir, tile_name + '.json'))
     board_tiles[i, j] = tile_info
 joker.show_img(generate_board(tile_template), resize=0.1)
