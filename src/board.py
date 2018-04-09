@@ -4,8 +4,6 @@ import cv2
 import numpy as np
 from itertools import product, chain, repeat
 
-from PIL import Image
-
 import joker
 from constants import KEY_TEXT, KEY_TITLE, KEY_IMG, KEY_RING_NUMBER, AREA_COLOR_IMG, AREA_COLOR_TITLE, AREA_COLOR_TEXT, \
     board_root_dir, board_tiles_input_dir, KEY_IMG_PATH
@@ -221,26 +219,6 @@ tile_template = TileFactory(cv2.imread(os.path.join(board_root_dir, 'board_tile_
 images = {joker.remove_suffix(f): f for f in os.listdir(board_tiles_input_dir) if joker.is_image(f)}
 
 
-# def make_or_load_tile(name):
-#     path = joker.remove_suffix(get_path(images[name])) + '.json'
-#     if os.path.exists(path):
-#         tile = json.loads(path[:path.rfind('.')] + '.json')
-#         for k in tile_template.get_fields():
-#             if k not in tile.keys():
-#                 tile[k] = ''
-#         return tile
-#     else:
-#         return dict.fromkeys(tile_template.get_fields(), '')
-#
-#
-# def save_tile(name, tile):
-#     path = get_path(images[name])
-#     path = path[:path.rfind('.')] + '.json'
-#     with open(path, 'w') as file:
-#         file.write(json.dumps(tile))
-#     return
-
-
 board_tiles = np.ndarray(board_tiles_strings.shape, dtype=object)
 for i, j in itertools.product(*[range(l) for l in board_tiles.shape]):
     tile_name = board_tiles_strings[i, j]
@@ -253,7 +231,7 @@ for i, j in itertools.product(*[range(l) for l in board_tiles.shape]):
     elif tile_info[KEY_RING_NUMBER] == VALUE_MIDDLE_RING_NUMBER:
         tile_image = tint_color(tile_image, 0)
     tile_info[KEY_IMG] = tile_image
-
+    joker.show_img(imutils.rotate(tile_image, 45))
     tile_info, _ = query_card_info(tile_info, tile_template)
     joker.save_card(tile_info, os.path.join(board_tiles_input_dir, tile_name + '.json'))
     board_tiles[i, j] = tile_info
